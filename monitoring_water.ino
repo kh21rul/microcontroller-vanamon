@@ -7,6 +7,7 @@ DallasTemperature sensors(&oneWire);
 
 const int turbidityPin = A0; // Pin analog untuk membaca nilai kekeruhan
 const int relayPin = 13; // Pin digital untuk mengontrol relay
+const int pHpin = A1; // Pin analog untuk membaca sensor pH
 
 // Parameter kalibrasi sensor turbidity
 const int jernihMin = 843;
@@ -17,6 +18,14 @@ const int sangatKeruhSekaliMin = 790;
 
 // Konstanta kalibrasi
 const int ntuMax = 200; // Nilai NTU maksimum yang akan dihasilkan
+
+// Nilai voltase kalibrasi untuk air pH 7 dan pH 4
+const float voltage_pH7 = 2.51; 
+const float voltage_pH4 = 2.20;
+
+// Nilai pH kalibrasi untuk air pH 7 dan pH 4
+const float pH7 = 7.0;
+const float pH4 = 4.0;
 
 void setup() {
   Serial.begin(9600); // Mulai serial monitor
@@ -31,6 +40,9 @@ void loop() {
   int turbidityValue = analogRead(turbidityPin); // Baca nilai kekeruhan
   int ntuValue = convertToNTU(turbidityValue); // Konversi ke NTU
 
+  float voltage = analogRead(pHpin) * (5.0 / 1023.0); // Baca voltase dari sensor pH
+  float pHValue = calibratepH(voltage); // Konversi voltase menjadi nilai pH
+
   Serial.print("Suhu pada air: ");
   Serial.print(temperature);
   Serial.println(" °C");
@@ -38,9 +50,16 @@ void loop() {
   Serial.print("Kekeruhan pada air: ");
   Serial.print(ntuValue);
   Serial.println(" NTU");
+
+  Serial.print("Voltase: ");
+  Serial.print(voltage, 2);
+  Serial.print(" V\t");
   
-  // Cek kondisi suhu dan kekeruhan
-  if (temperature > 35 || ntuValue > 400) {
+  Serial.print("pH: ");
+  Serial.println(pHValue, 2);
+
+  // Cek kondisi suhu, kekeruhan, dan pH
+  if (temperature > 35 || ntuValue > 400 || pHValue < 5 || pHValue > 9) {
     digitalWrite(relayPin, LOW); // Nyalakan relay
   } else {
     digitalWrite(relayPin, HIGH); // Matikan relay
@@ -65,4 +84,10 @@ int convertToNTU(int turbidityValue) {
     // Persamaan linier untuk konversi ke NTU di rentang sangat keruh sekali
     return map(turbidityValue, sangatKeruhSekaliMin, sangatKeruhMin - 1, ntuMax * 3 + 1, ntuMax * 4);
   }
+}
+
+float calibratepH(float voltage) {
+  // Interpolasi linear untuk mengkalibrasi nilai pH
+  float pH = pH7 + ((voltage - voltage_pH7) / (voltage_pH4 - voltage_pH7)) * (pH4 - pH7);
+  return pH;
 }
