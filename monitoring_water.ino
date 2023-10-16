@@ -46,12 +46,8 @@ float nilaiSuhu; // Menampung nilai Suhu pada function
 float TempValue; // Menampung Value suhu
 
 const int turbidityPin = A0; // Deklarasi Sensor Turbidity
-const int jernihMin = 843;   // Parameter kalibrasi sensor turbidity
-const int keruhSedikitMin = 835;
-const int keruhMin = 825;
-const int sangatKeruhMin = 810;
-const int sangatKeruhSekaliMin = 790;
-const int ntuMax = 100; // Nilai NTU maksimum yang akan dihasilkan
+float volt;
+float ntu;
 float nilaiKeruh;       // Menampung nilai kekeruhan pada function
 float TurbiValue;       // Menampung nilai Keruh
 
@@ -61,8 +57,8 @@ float nilaipH = 0;
 float PH_step;
 int nilai_analog_PH;
 double TeganganPh;
-float PH4 = 1.6;
-float PH7 = 2.5;
+float PH4 = 3.6;
+float PH7 = 3.3;
 float pHValue; // Menampung nilai pH
 
 // deklarasi sensor DO
@@ -72,7 +68,7 @@ float pHValue; // Menampung nilai pH
 // Single-point calibration Mode=0
 // Two-point calibration Mode=1
 #define TWO_POINT_CALIBRATION 0
-#define READ_TEMP (30) // Current water temperature ℃, Or temperature sensor function
+#define READ_TEMP (28) // Current water temperature ℃, Or temperature sensor function
 // Single point calibration needs to be filled CAL1_V and CAL1_T
 #define CAL1_V (1870) // mv
 #define CAL1_T (25)   // ℃
@@ -103,10 +99,10 @@ char ssid[] = "Wifi Gratis"; // your network SSID (name)
 char pass[] = "12345678";    // your network password
 int status = WL_IDLE_STATUS; // the Wifi radio's status
 
-char server[] = "monitoring.kh21rul.site";
+char server[] = "192.168.73.174";
 
 unsigned long lastConnectionTime = 0;         // last time you connected to the server, in milliseconds
-const unsigned long postingInterval = 10000L; // delay between updates, in milliseconds
+const unsigned long postingInterval = 3000L; // delay between updates, in milliseconds
 
 // Initialize the Ethernet client object
 WiFiEspClient client;
@@ -148,16 +144,10 @@ void setup()
 
 void loop()
 {
-  // TempValue = takeTemperature(); // ambil data suhu
-  // TurbiValue = takeTurbidity();  // ambil data turbidity
-  // pHValue = takepH();            // ambil data pH
-  // DOValue = takeDO();            // ambil data DO
-
-  // Input nilai Variabel
-  float TempValue = 38;
-  float TurbiValue = 90;
-  float pHValue = 7;
-  float DOValue = 7.5;
+  TempValue = takeTemperature(); // ambil data suhu
+  TurbiValue = takeTurbidity();  // ambil data turbidity
+  pHValue = takepH();            // ambil data pH
+  DOValue = takeDO();            // ambil data DO
 
   // Hitung Fuzzy Output Aerator menggunakan fungsi
   OutputAerator = fuzzyTsukamotoAerator(DOValue, TempValue);
@@ -168,10 +158,12 @@ void loop()
   if (OutputAerator >= 750)
   {
     aerator = "Hidup";
+    digitalWrite(relayAerator, LOW);
   }
   else
   {
     aerator = "Mati";
+    digitalWrite(relayAerator, HIGH);
   }
 
   // Cek on/off Water Pump
@@ -247,10 +239,10 @@ void httpRequest(String data)
     Serial.println("Connecting...");
 
     // send the HTTP GET request with the provided data
-    client.print(F("GET /simpan/"));
+    client.print(F("GET /water-monitoring/public/simpan/"));
     client.print(data);
     client.println(F(" HTTP/1.1"));
-    client.println(F("Host: monitoring.kh21rul.site"));
+    client.println(F("Host: 192.168.73.174"));
     client.println(F("Connection: close"));
     client.println();
 
@@ -291,31 +283,26 @@ float takeTemperature()
 
 float takeTurbidity()
 {                                        // Fungsi pengambilan kekeruhan dari sensor
-  nilaiKeruh = analogRead(turbidityPin); // Baca nilai kekeruhan dari sensor
-  if (nilaiKeruh >= jernihMin)           // konversi nilai kekeruhan ke NTU
-  {
-    return 0; // Jernih, nilai NTU = 0
-  }
-  else if (nilaiKeruh >= keruhSedikitMin)
-  {
-    // Persamaan linier untuk konversi ke NTU di rentang keruh sedikit
-    return map(nilaiKeruh, keruhSedikitMin, jernihMin - 1, 1, ntuMax);
-  }
-  else if (nilaiKeruh >= keruhMin)
-  {
-    // Persamaan linier untuk konversi ke NTU di rentang keruh
-    return map(nilaiKeruh, keruhMin, keruhSedikitMin - 1, ntuMax + 1, ntuMax * 2);
-  }
-  else if (nilaiKeruh >= sangatKeruhMin)
-  {
-    // Persamaan linier untuk konversi ke NTU di rentang sangat keruh
-    return map(nilaiKeruh, sangatKeruhMin, keruhMin - 1, ntuMax * 2 + 1, ntuMax * 3);
-  }
-  else
-  {
-    // Persamaan linier untuk konversi ke NTU di rentang sangat keruh sekali
-    return map(nilaiKeruh, sangatKeruhSekaliMin, sangatKeruhMin - 1, ntuMax * 3 + 1, ntuMax * 4);
-  }
+  volt = 0;
+    for(int i=0; i<800; i++)
+    {
+        volt += ((float)analogRead(turbidityPin)/1023)*5;
+    }
+    volt = volt/800;
+    volt = round_to_dp(volt,2);
+    if(volt < 2.5){
+      ntu = 6000 / 10;
+    }else{
+      ntu = (-1120.4*square(volt)+5742.3*volt-4353.8) / 10; 
+    }
+  return ntu;
+}
+
+float round_to_dp( float in_value, int decimal_place )
+{
+  float multiplier = powf( 10.0f, decimal_place );
+  in_value = roundf( in_value * multiplier ) / multiplier;
+  return in_value;
 }
 
 float takepH()
