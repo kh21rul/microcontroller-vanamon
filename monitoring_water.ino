@@ -95,14 +95,14 @@ const int relayAerator = 12;   // Deklarasi Pin Relay Aerator
 SoftwareSerial Serial1(2, 3); // RX, TX
 #endif
 
-char ssid[] = "Wifi Gratis"; // your network SSID (name)
-char pass[] = "12345678";    // your network password
+char ssid[] = "e-UnimalNet"; // your network SSID (name)
+char pass[] = "unimalnet";    // your network password
 int status = WL_IDLE_STATUS; // the Wifi radio's status
 
-char server[] = "192.168.73.174";
+char server[] = "monitoring.kh21rul.site";
 
 unsigned long lastConnectionTime = 0;         // last time you connected to the server, in milliseconds
-const unsigned long postingInterval = 3000L; // delay between updates, in milliseconds
+const unsigned long postingInterval = 10000L; // delay between updates, in milliseconds
 
 // Initialize the Ethernet client object
 WiFiEspClient client;
@@ -148,6 +148,11 @@ void loop()
   TurbiValue = takeTurbidity();  // ambil data turbidity
   pHValue = takepH();            // ambil data pH
   DOValue = takeDO();            // ambil data DO
+
+  // TempValue = 30; // set testing data suhu
+  // TurbiValue = 100;  // set testing turbidity
+  // pHValue = 7;            // set testing data pH
+  // DOValue = 7;            // set testing data DO
 
   // Hitung Fuzzy Output Aerator menggunakan fungsi
   OutputAerator = fuzzyTsukamotoAerator(DOValue, TempValue);
@@ -239,10 +244,10 @@ void httpRequest(String data)
     Serial.println("Connecting...");
 
     // send the HTTP GET request with the provided data
-    client.print(F("GET /water-monitoring/public/simpan/"));
+    client.print(F("GET /simpan/"));
     client.print(data);
     client.println(F(" HTTP/1.1"));
-    client.println(F("Host: 192.168.73.174"));
+    client.println(F("Host: monitoring.kh21rul.site"));
     client.println(F("Connection: close"));
     client.println();
 
